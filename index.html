@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entrenador de Guion con IA - Ariel</title>
+    
+    <!-- Estilos: Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Iconos: Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Fuente Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Animaciones personalizadas */
+        @keyframes shrinkWidth {
+          from { width: 0%; }
+          to { width: 100%; }
+        }
+        .animate-shrink {
+            animation-name: shrinkWidth;
+            animation-timing-function: linear;
+            animation-fill-mode: forwards;
+        }
+        
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .pulse-ring {
+            box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.7);
+            animation: pulse-purple 2s infinite cubic-bezier(0.66, 0, 0, 1);
+        }
+        @keyframes pulse-purple {
+            to { box-shadow: 0 0 0 20px rgba(147, 51, 234, 0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-10">
+
+    <!-- HEADER -->
+    <header class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 shadow-md sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <button onclick="resetApp()" class="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors" title="Cambiar guion">
+                    <i data-lucide="edit-3" class="w-5 h-5"></i>
+                </button>
+                <h1 class="text-xl font-bold flex items-center gap-2">
+                    <i data-lucide="mic" class="w-5 h-5"></i>
+                    <span id="header-title">Entrenador de Guion</span>
+                </h1>
+            </div>
+            
+            <!-- Navegación de Modos (Oculta al inicio) -->
+            <div id="mode-nav" class="hidden flex bg-black/20 rounded-lg p-1 overflow-x-auto">
+                <button onclick="setMode('read')" id="btn-mode-read" class="px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 hover:bg-white/10 text-indigo-100">
+                    <i data-lucide="book-open" class="w-4 h-4"></i> Leer
+                </button>
+                <button onclick="setMode('memorize')" id="btn-mode-memorize" class="px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 hover:bg-white/10 text-indigo-100">
+                    <i data-lucide="eye-off" class="w-4 h-4"></i> Memorizar
+                </button>
+                <button onclick="setMode('practice')" id="btn-mode-practice" class="px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2 hover:bg-white/10 text-indigo-100">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i> Ensayo IA
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="max-w-3xl mx-auto p-4 mt-4 relative">
+        
+        <!-- PANTALLA 1: SETUP (Carga de guion) -->
+        <div id="setup-screen" class="bg-white max-w-2xl mx-auto p-8 rounded-xl shadow-xl border border-slate-200 fade-in">
+            <div class="text-center mb-8">
+                <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-600">
+                    <i data-lucide="file-text" id="setup-icon" class="w-8 h-8"></i>
+                </div>
+                <h2 id="setup-title" class="text-2xl font-bold text-slate-800">Paso 1: Sube tu Guion</h2>
+                <p id="setup-desc" class="text-slate-500 mt-2">Copia el texto de tu PDF y pégalo aquí.</p>
+            </div>
+
+            <!-- Paso 1: Input de Texto -->
+            <div id="setup-step-1" class="space-y-4">
+                <textarea id="script-input" class="w-full h-64 p-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono text-sm" placeholder="Ejemplo:&#10;MARC: Hola a todos.&#10;ARIEL: ¡Buenos días!&#10;..."></textarea>
+                <div class="flex gap-3">
+                    <button onclick="loadDemoScript()" class="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 font-medium text-sm transition-colors">
+                        Usar ejemplo
+                    </button>
+                    <button onclick="processScriptInput()" class="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold shadow-md flex items-center justify-center gap-2 transition-transform hover:scale-[1.02]">
+                        Procesar Texto <i data-lucide="play" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Paso 2: Selección de Personaje (Oculto) -->
+            <div id="setup-step-2" class="space-y-4 hidden">
+                <div id="speakers-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-2">
+                    <!-- Botones generados por JS -->
+                </div>
+                <button onclick="backToStep1()" class="w-full mt-4 text-slate-400 hover:text-slate-600 text-sm py-2 flex items-center justify-center gap-1">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Volver
+                </button>
+            </div>
+        </div>
+
+        <!-- PANTALLA 2: APLICACIÓN PRINCIPAL (Oculta al inicio) -->
+        <div id="main-app" class="hidden space-y-6">
+            
+            <!-- Banner Informativo -->
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h2 id="mode-title" class="font-semibold text-lg text-slate-700 mb-1 flex items-center gap-2">
+                            <!-- JS rellena esto -->
+                        </h2>
+                        <p id="mode-desc" class="text-slate-500 text-sm">
+                            <!-- JS rellena esto -->
+                        </p>
+                    </div>
+                    <button id="lang-toggle" onclick="toggleLanguage()" class="hidden text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1 rounded-full flex items-center gap-1 transition-colors">
+                        <i data-lucide="globe" class="w-3 h-3"></i> <span id="lang-label">Idioma: Inglés</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Contenedor Dinámico de Contenido -->
+            <div id="content-area">
+                <!-- Aquí se inyectan las vistas de Leer, Memorizar y Practicar -->
+            </div>
+            
+        </div>
+    </main>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- VARIABLES DE ESTADO ---
+        let scriptData = [];
+        let myCharacter = null;
+        let mode = 'read'; // read, memorize, practice
+        let currentStep = 0;
+        let practiceSteps = [];
+        
+        // Estado Audio/IA
+        let isListening = false;
+        let isAnalyzing = false;
+        let spokenText = '';
+        let recognition = null;
+        let audioContext = null;
+        let analyser = null;
+        let source = null;
+        let animationFrame = null;
+        let voiceLang = 'en-US';
+        let autoAdvanceTimer = null;
+        let globalStream = null; // Stream persistente para evitar pedir permisos
+        
+        // Resultados IA
+        let aiResult = null;
+        let revealedPracticeLine = false;
+
+        // Datos Demo
+        const demoScriptText = `Marc: Today's 2 of december and we'll bring you with the latest news right now.
+Alex: Good morning! So, today's weather is awful.
+Marc: Wow that's terrible I'm sad now.
+Ariel: Today we are talking about Artix, what's Artix?
+Marc: Ok, thanks, Ariel!
+Ariel: Sure, what's about?
+Reporter: We are intervewing people about pollution.
+Ariel: Well, pollution has been a problem since the industrial revolution.`;
+
+        // --- INICIALIZACIÓN ---
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+
+        // --- SETUP ---
+        function loadDemoScript() {
+            document.getElementById('script-input').value = demoScriptText;
+        }
+
+        function parseScript(text) {
+            const lines = text.split('\n');
+            const parsed = [];
+            let currentSpeaker = null;
+            let currentText = [];
+            let idCounter = 1;
+            const speakerRegex = /^([A-Z][a-zA-Z\s\?]+):(.+)/;
+
+            lines.forEach((line) => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+                const match = trimmed.match(speakerRegex);
+                if (match) {
+                    if (currentSpeaker) {
+                        parsed.push({ id: idCounter++, speaker: currentSpeaker, text: currentText.join(' ') });
+                    }
+                    currentSpeaker = match[1].trim();
+                    currentText = [match[2].trim()];
+                } else {
+                    if (currentSpeaker) currentText.push(trimmed);
+                }
+            });
+
+            if (currentSpeaker && currentText.length > 0) {
+                parsed.push({ id: idCounter++, speaker: currentSpeaker, text: currentText.join(' ') });
+            }
+            return parsed;
+        }
+
+        function processScriptInput() {
+            const input = document.getElementById('script-input').value;
+            if (!input.trim()) return;
+            
+            const data = parseScript(input);
+            if (data.length === 0) {
+                alert("No detecté diálogos. Usa formato 'NOMBRE: Frase'.");
+                return;
+            }
+            
+            scriptData = data;
+            const speakers = [...new Set(data.map(d => d.speaker))];
+            
+            // Render Speakers
+            const list = document.getElementById('speakers-list');
+            list.innerHTML = '';
+            speakers.forEach(speaker => {
+                const count = scriptData.filter(d => d.speaker === speaker).length;
+                const btn = document.createElement('button');
+                btn.className = "p-4 rounded-lg border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left group";
+                btn.onclick = () => finishSetup(speaker);
+                btn.innerHTML = `
+                    <span class="block font-bold text-slate-700 group-hover:text-indigo-700">${speaker}</span>
+                    <span class="text-xs text-slate-400">${count} líneas</span>
+                `;
+                list.appendChild(btn);
+            });
+
+            // UI Transitions
+            document.getElementById('setup-step-1').classList.add('hidden');
+            document.getElementById('setup-step-2').classList.remove('hidden');
+            document.getElementById('setup-icon').setAttribute('data-lucide', 'user');
+            document.getElementById('setup-title').innerText = "Paso 2: ¿Quién eres?";
+            document.getElementById('setup-desc').innerText = "Selecciona tu personaje de la lista.";
+            lucide.createIcons();
+        }
+
+        function backToStep1() {
+            document.getElementById('setup-step-1').classList.remove('hidden');
+            document.getElementById('setup-step-2').classList.add('hidden');
+            document.getElementById('setup-icon').setAttribute('data-lucide', 'file-text');
+            document.getElementById('setup-title').innerText = "Paso 1: Sube tu Guion";
+            document.getElementById('setup-desc').innerText = "Copia el texto de tu PDF y pégalo aquí.";
+            lucide.createIcons();
+        }
+
+        function finishSetup(character) {
+            myCharacter = character;
+            
+            // Preparar Practice Steps
+            practiceSteps = [];
+            scriptData.forEach((line, index) => {
+                if (line.speaker === myCharacter) {
+                    const prevLine = scriptData[index - 1];
+                    const cue = prevLine ? prevLine : { speaker: "INICIO", text: "La escena comienza..." };
+                    practiceSteps.push({ cue, response: line });
+                }
+            });
+
+            // UI switch
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            document.getElementById('mode-nav').classList.remove('hidden');
+            document.getElementById('header-title').innerText = `Guion de ${myCharacter}`;
+            
+            setMode('read');
+        }
+
+        function resetApp() {
+            if(confirm("¿Quieres cambiar de guion? Se perderá el progreso actual.")) {
+                stopMediaTracks(); // Limpiar tracks al recargar
+                location.reload();
+            }
+        }
+
+        // --- NAVEGACIÓN Y MODOS ---
+        function setMode(newMode) {
+            // Si salimos del modo práctica, limpiamos el micrófono
+            if (mode === 'practice' && newMode !== 'practice') {
+                stopMediaTracks();
+            }
+
+            mode = newMode;
+            stopLogicOnly(); // Detenemos la lógica pero no los tracks si seguimos en práctica
+            
+            // Actualizar botones nav
+            ['read', 'memorize', 'practice'].forEach(m => {
+                const btn = document.getElementById(`btn-mode-${m}`);
+                if (m === mode) {
+                    btn.classList.add('bg-white', 'text-indigo-700', 'shadow-sm');
+                    btn.classList.remove('hover:bg-white/10', 'text-indigo-100');
+                } else {
+                    btn.classList.remove('bg-white', 'text-indigo-700', 'shadow-sm');
+                    btn.classList.add('hover:bg-white/10', 'text-indigo-100');
+                }
+            });
+
+            // Actualizar Banner y Contenido
+            const titleEl = document.getElementById('mode-title');
+            const descEl = document.getElementById('mode-desc');
+            const langToggle = document.getElementById('lang-toggle');
+            
+            langToggle.classList.add('hidden');
+
+            if (mode === 'read') {
+                titleEl.innerHTML = `Modo Lectura`;
+                descEl.innerText = "Lee todo el guion con tus partes resaltadas.";
+                renderReadMode();
+            } else if (mode === 'memorize') {
+                titleEl.innerHTML = `Modo Memorizar`;
+                descEl.innerText = "Tus líneas están ocultas. Haz clic para revelarlas.";
+                renderMemorizeMode();
+            } else if (mode === 'practice') {
+                titleEl.innerHTML = `<i data-lucide="sparkles" class="text-purple-500 w-5 h-5"></i> Modo Ensayo Inteligente`;
+                descEl.innerText = "Dale al play, habla todo lo que quieras y dale a STOP para que la IA te puntúe.";
+                langToggle.classList.remove('hidden');
+                
+                // IMPORTANTE: Reseteamos currentStep solo al entrar en modo practice por primera vez o reiniciar
+                // No llamamos a resetPracticeState aquí para no pisar si ya venía con estado, 
+                // pero si cambiamos de modo generalmente se empieza de cero.
+                currentStep = 0;
+                resetPracticeState();
+                renderPracticeMode();
+            }
+            lucide.createIcons();
+        }
+
+        // --- RENDERIZADO DE MODOS ---
+
+        function renderReadMode() {
+            const container = document.getElementById('content-area');
+            let html = '<div class="space-y-4 fade-in">';
+            
+            scriptData.forEach(line => {
+                const isMe = line.speaker === myCharacter;
+                const bgClass = isMe ? "bg-purple-50 border-purple-400 shadow-sm" : "bg-white border-slate-300";
+                const textClass = isMe ? "text-slate-900 font-medium" : "text-slate-600";
+                const labelClass = isMe ? "text-purple-700" : "text-slate-500";
+                
+                html += `
+                    <div class="p-4 rounded-lg border-l-4 ${bgClass}">
+                        <div class="flex justify-between items-baseline mb-1">
+                            <span class="font-bold text-sm uppercase tracking-wide ${labelClass}">${line.speaker}</span>
+                        </div>
+                        <p class="text-lg leading-relaxed ${textClass}">${line.text}</p>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderMemorizeMode() {
+            const container = document.getElementById('content-area');
+            let html = '<div class="space-y-6 fade-in">';
+            
+            scriptData.forEach(line => {
+                const isMe = line.speaker === myCharacter;
+                if (isMe) {
+                    // Interactive blurred card
+                    html += `
+                        <div class="p-4 rounded-lg border-l-4 bg-purple-50 border-purple-400 transition-all">
+                            <span class="font-bold text-xs uppercase tracking-wide block mb-2 text-purple-700">${line.speaker}</span>
+                            <div onclick="toggleBlur(this)" class="cursor-pointer relative group select-none">
+                                <p class="text-lg leading-relaxed transition-all duration-300 blur-md text-slate-400 filter" data-text="${line.text}">
+                                    ${line.text}
+                                </p>
+                                <div class="overlay absolute inset-0 flex items-center justify-center">
+                                    <span class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 shadow-sm group-hover:bg-purple-200 transition-colors">
+                                        <i data-lucide="eye"></i> Toca para ver
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="p-4 rounded-lg border-l-4 bg-white border-slate-200 opacity-60">
+                            <span class="font-bold text-xs uppercase tracking-wide block mb-2 text-slate-400">${line.speaker}</span>
+                            <p class="text-slate-600 text-base">${line.text}</p>
+                        </div>
+                    `;
+                }
+            });
+            html += '</div>';
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        // Helper para memorizar
+        window.toggleBlur = function(element) {
+            const p = element.querySelector('p');
+            const overlay = element.querySelector('.overlay');
+            
+            if (p.classList.contains('blur-md')) {
+                p.classList.remove('blur-md', 'text-slate-400');
+                p.classList.add('text-slate-900');
+                overlay.style.display = 'none';
+            } else {
+                p.classList.add('blur-md', 'text-slate-400');
+                p.classList.remove('text-slate-900');
+                overlay.style.display = 'flex';
+            }
+        }
+
+        // --- LÓGICA DE PRÁCTICA (IA) ---
+
+        function resetPracticeState() {
+            // CORREGIDO: Ya no reinicia currentStep = 0 aquí. 
+            // Esto solo limpia el estado de la INTERVENCIÓN actual.
+            spokenText = '';
+            aiResult = null;
+            isListening = false;
+            isAnalyzing = false;
+            revealedPracticeLine = false;
+            clearAutoAdvance();
+        }
+        
+        function clearAutoAdvance() {
+            if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+            autoAdvanceTimer = null;
+        }
+
+        function renderPracticeMode() {
+            const container = document.getElementById('content-area');
+            
+            if (practiceSteps.length === 0) {
+                container.innerHTML = `<div class="text-center py-10 text-slate-400"><p>No se encontraron líneas para ${myCharacter}.</p></div>`;
+                return;
+            }
+
+            const step = practiceSteps[currentStep];
+            
+            // Construcción del HTML
+            let html = `
+                <div class="max-w-xl mx-auto fade-in">
+                    <!-- Nav pequeña -->
+                    <div class="flex justify-between items-center mb-6 text-sm text-slate-500">
+                        <span>Intervención ${currentStep + 1} de ${practiceSteps.length}</span>
+                        <div class="flex gap-2">
+                            <button onclick="prevStep()" ${currentStep === 0 ? 'disabled' : ''} class="px-3 py-1 rounded hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed">Anterior</button>
+                            <button onclick="fullResetPractice()" class="px-3 py-1 rounded hover:bg-slate-200 flex items-center gap-1"><i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reiniciar</button>
+                        </div>
+                    </div>
+
+                    <!-- CUE (Pie) -->
+                    <div class="bg-slate-100 p-6 rounded-t-xl border border-slate-200">
+                        <span class="text-xs font-bold text-slate-400 uppercase mb-2 block">PIE (Turno anterior)</span>
+                        <div class="flex items-start gap-3">
+                            <div class="bg-slate-300 h-10 w-10 rounded-full flex items-center justify-center text-slate-600 font-bold text-xs shrink-0 uppercase">
+                                ${step.cue.speaker.substring(0,2)}
+                            </div>
+                            <div>
+                                <span class="font-bold text-slate-700 text-sm block mb-1">${step.cue.speaker} dice:</span>
+                                <p class="text-slate-700 italic text-lg leading-snug">"...${step.cue.text.slice(-100)}"</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AREA PRINCIPAL -->
+                    <div class="bg-white p-6 rounded-b-xl border-x border-b border-slate-200 shadow-lg relative min-h-[400px] flex flex-col items-center">
+                        
+                        <!-- Visualizador de Audio (Canvas) -->
+                        <div class="w-full mb-6 relative h-32 bg-slate-900 rounded-lg overflow-hidden shadow-inner flex items-center justify-center">
+                            <canvas id="audio-visualizer" width="400" height="128" class="w-full h-full absolute inset-0 ${isListening ? 'opacity-100' : 'opacity-0'}"></canvas>
+                            ${!isListening ? `
+                                <div class="absolute text-slate-500 text-sm flex items-center gap-2 animate-pulse z-10">
+                                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i> Pulsa el micro para empezar
+                                </div>
+                            ` : ''}
+                            
+                            <!-- Barra de progreso auto-avance -->
+                            ${autoAdvanceTimer ? `
+                                <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-200 z-20">
+                                    <div class="h-full bg-green-500 animate-shrink w-full origin-left" style="animation-duration: 15000ms"></div>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- CONTROLES -->
+                        <div class="mb-4 w-full flex flex-col items-center">
+                            
+                            <!-- Estado Inicial -->
+                            ${!isListening && !isAnalyzing && !aiResult ? `
+                                <div class="text-center fade-in">
+                                    <p class="text-slate-500 mb-4 text-lg font-medium">Pulsa, habla todo lo que necesites y luego para.</p>
+                                    <button onclick="startListening()" class="bg-purple-600 hover:bg-purple-700 text-white w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all transform hover:scale-110 active:scale-95 ring-4 ring-purple-100 pulse-ring">
+                                        <i data-lucide="mic" class="w-8 h-8"></i>
+                                    </button>
+                                </div>
+                            ` : ''}
+
+                            <!-- Escuchando -->
+                            ${isListening ? `
+                                <div class="text-center">
+                                    <button onclick="stopAndAnalyze()" class="bg-red-500 hover:bg-red-600 text-white w-20 h-20 rounded-full flex items-center justify-center shadow-lg animate-pulse transition-all transform hover:scale-105">
+                                        <i data-lucide="mic-off" class="w-8 h-8"></i>
+                                    </button>
+                                    <p class="mt-4 text-purple-600 font-medium">Escuchando... (Pulsa para evaluar)</p>
+                                </div>
+                            ` : ''}
+
+                            <!-- Analizando -->
+                            ${isAnalyzing ? `
+                                <div class="text-center py-4 flex flex-col items-center fade-in">
+                                    <i data-lucide="loader-2" class="w-10 h-10 animate-spin text-purple-600 mb-2"></i>
+                                    <p class="text-slate-600 font-medium">La IA está analizando tu actuación...</p>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- RESULTADOS IA -->
+                        ${aiResult ? renderAIResult(aiResult) : ''}
+
+                        <!-- Botón "Me rindo" -->
+                        ${!isListening && !isAnalyzing && !aiResult && !revealedPracticeLine ? `
+                            <button onclick="revealLine()" class="mt-4 text-slate-400 hover:text-purple-600 text-xs flex items-center gap-1 transition-colors">
+                                <i data-lucide="eye" class="w-3 h-3"></i> Me rindo, mostrar frase
+                            </button>
+                        ` : ''}
+
+                        <!-- Texto Revelado -->
+                        ${revealedPracticeLine && !aiResult ? `
+                            <div class="mt-6 w-full text-left fade-in">
+                                <p class="text-lg font-medium text-slate-800 border-t pt-4">${step.response.text}</p>
+                            </div>
+                        ` : ''}
+                        
+                    </div>
+
+                    <!-- Footer Next -->
+                    <div class="mt-8">
+                         <button onclick="nextStep()" ${currentStep === practiceSteps.length - 1 ? 'disabled' : ''} class="w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all flex justify-center items-center gap-2 ${autoAdvanceTimer ? 'bg-green-600 text-white scale-105' : 'bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed'}">
+                            ${currentStep === practiceSteps.length - 1 ? 
+                                `¡Fin del ensayo! <i data-lucide="check" class="w-5 h-5"></i>` : 
+                                `Siguiente <i data-lucide="play" class="w-5 h-5"></i>`
+                            }
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+            lucide.createIcons();
+            
+            // Si estamos escuchando, nos aseguramos de que el visualizador esté conectado
+            if(isListening) {
+                 // initAudioVisualizer intentará reusar el stream global
+                 initAudioVisualizer(); 
+            }
+        }
+
+        function renderAIResult(result) {
+            const scoreColor = result.score >= 80 ? "text-green-500" : result.score >= 50 ? "text-yellow-500" : "text-red-500";
+            
+            let missingHtml = '';
+            if (result.missingWords && result.missingWords.length > 0) {
+                missingHtml = `
+                    <div class="bg-red-50 border border-red-100 p-3 rounded-lg text-left mb-4">
+                        <p class="text-xs font-bold text-red-400 uppercase mb-1 flex items-center gap-1"><i data-lucide="alert-circle" class="w-3 h-3"></i> Faltó:</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${result.missingWords.map(w => `<span class="bg-white px-2 py-1 rounded text-red-600 text-sm border border-red-100 shadow-sm">${w}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="w-full fade-in pb-4">
+                    ${autoAdvanceTimer ? `
+                        <div class="bg-green-50 text-green-700 px-4 py-2 rounded-lg mb-4 flex items-center justify-center gap-2 text-sm font-bold border border-green-200 animate-pulse">
+                            <i data-lucide="fast-forward" class="w-4 h-4"></i> Siguiente frase en 15 segundos...
+                        </div>
+                    ` : ''}
+
+                    <div class="flex items-center justify-center gap-6 mb-6">
+                        <div class="flex flex-col items-center">
+                            <div class="text-5xl font-black ${scoreColor}">${result.score}</div>
+                            <span class="text-xs uppercase font-bold text-slate-400 mt-1">Nota</span>
+                        </div>
+                        <div class="h-12 w-px bg-slate-200"></div>
+                        <div class="flex-1 text-left">
+                            <div class="flex items-center gap-2 mb-1">
+                                <i data-lucide="sparkles" class="text-purple-600 w-4 h-4"></i>
+                                <span class="font-bold text-purple-900 text-sm uppercase">Feedback</span>
+                            </div>
+                            <p class="text-slate-700 text-sm leading-snug italic">"${result.feedback}"</p>
+                        </div>
+                    </div>
+
+                    ${missingHtml}
+
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-left">
+                        <p class="text-xs text-slate-400 uppercase font-bold mb-1">Texto Recibido:</p>
+                        <p class="text-slate-600 italic text-sm">"${spokenText}"</p>
+                    </div>
+                    
+                    <div class="mt-4 pt-4 border-t border-slate-100 text-left">
+                         <p class="text-xs text-slate-400 uppercase font-bold mb-1">Objetivo:</p>
+                         <p class="text-slate-800 font-medium">${practiceSteps[currentStep].response.text}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- FUNCIONES DE AUDIO Y SPEECH ---
+        
+        function toggleLanguage() {
+            voiceLang = voiceLang === 'en-US' ? 'es-ES' : 'en-US';
+            const label = document.getElementById('lang-label');
+            label.innerText = voiceLang === 'en-US' ? 'Idioma: Inglés' : 'Idioma: Español';
+            
+            // Si estaba escuchando, reinicia
+            if(isListening) {
+                stopLogicOnly();
+                startListening();
+            }
+        }
+
+        function startListening() {
+            if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+                alert("Tu navegador no soporta reconocimiento de voz. Usa Chrome.");
+                return;
+            }
+
+            spokenText = '';
+            aiResult = null;
+            isListening = true;
+            revealedPracticeLine = false;
+            clearAutoAdvance();
+            renderPracticeMode();
+
+            // Speech Recognition
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = true; // IMPORTANTE: No parar en silencio
+            recognition.interimResults = true;
+            recognition.lang = voiceLang;
+
+            recognition.onresult = (event) => {
+                const transcript = Array.from(event.results)
+                    .map(result => result[0].transcript)
+                    .join('');
+                spokenText = transcript;
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Error Speech:", event.error);
+                if(event.error !== 'no-speech') {
+                    isListening = false;
+                    renderPracticeMode();
+                }
+            };
+            
+            try {
+                recognition.start();
+                initAudioVisualizer(); // Reusa el stream global si existe
+            } catch(e) { console.error(e); }
+        }
+
+        function stopAndAnalyze() {
+            stopLogicOnly(); // Paramos solo la lógica (reconocimiento), no el visualizador/stream
+            
+            if (!spokenText.trim()) {
+                isListening = false;
+                renderPracticeMode();
+                return;
+            }
+
+            isAnalyzing = true;
+            renderPracticeMode();
+
+            // Llamada a la IA
+            const target = practiceSteps[currentStep].response.text;
+            callAIAnalysis(target, spokenText).then(result => {
+                aiResult = result;
+                isAnalyzing = false;
+                
+                // Auto avance si score alto
+                if (result.score >= 80 && currentStep < practiceSteps.length - 1) {
+                    autoAdvanceTimer = setTimeout(() => {
+                        nextStep();
+                    }, 15000);
+                }
+                
+                renderPracticeMode();
+            });
+        }
+
+        // Detiene solo el reconocimiento de texto y animación, pero mantiene el stream de audio
+        function stopLogicOnly() {
+            if (recognition) {
+                try { recognition.stop(); } catch(e){}
+                recognition = null;
+            }
+            isListening = false;
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+        }
+
+        // Detiene TODO, incluyendo el stream (para salir del modo)
+        function stopMediaTracks() {
+            stopLogicOnly();
+            if (globalStream) {
+                globalStream.getTracks().forEach(t => t.stop());
+                globalStream = null;
+            }
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+        }
+
+        function stopEverything() {
+            // Alias legacy, ahora decide qué parar según el modo
+            stopLogicOnly();
+        }
+
+        // --- AUDIO VISUALIZER (Canvas) ---
+        async function initAudioVisualizer() {
+            try {
+                // Reusar stream si existe
+                if (!globalStream || !globalStream.active) {
+                    globalStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                }
+                
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!audioContext) audioContext = new AudioContext();
+                if (audioContext.state === 'suspended') await audioContext.resume();
+
+                // Si ya existe una fuente conectada, desconectarla para evitar errores
+                if (source) source.disconnect();
+
+                analyser = audioContext.createAnalyser();
+                source = audioContext.createMediaStreamSource(globalStream);
+                source.connect(analyser);
+                analyser.fftSize = 256;
+
+                drawWaveform();
+            } catch (err) {
+                console.error("Error mic visualizer:", err);
+            }
+        }
+
+        function drawWaveform() {
+            const canvas = document.getElementById('audio-visualizer');
+            if (!canvas || !isListening) return;
+            
+            const ctx = canvas.getContext('2d');
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            const render = () => {
+                if (!isListening) return;
+                animationFrame = requestAnimationFrame(render);
+                analyser.getByteFrequencyData(dataArray);
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const centerX = canvas.width / 2;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = (dataArray[i] / 255) * canvas.height;
+                    // Gradiente morado
+                    const r = 147 + (barHeight/2);
+                    const g = 51 + (barHeight/4);
+                    const b = 234;
+                    
+                    ctx.fillStyle = `rgb(${r},${g},${b})`;
+
+                    const xPos = centerX + (i * 2);
+                    const xNeg = centerX - (i * 2);
+                    const yPos = (canvas.height - barHeight) / 2;
+
+                    if (xPos < canvas.width) ctx.fillRect(xPos, yPos, 2, barHeight);
+                    if (xNeg > 0) ctx.fillRect(xNeg, yPos, 2, barHeight);
+                }
+            };
+            render();
+        }
+
+        // --- NAVEGACIÓN PASOS ---
+        function nextStep() {
+            if (currentStep < practiceSteps.length - 1) {
+                currentStep++;
+                resetPracticeState(); // limpia texto, score, etc
+                renderPracticeMode();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) {
+                currentStep--;
+                resetPracticeState();
+                renderPracticeMode();
+            }
+        }
+
+        function fullResetPractice() {
+            currentStep = 0; // Reinicia el contador de pasos explícitamente
+            resetPracticeState();
+            renderPracticeMode();
+        }
+
+        function revealLine() {
+            revealedPracticeLine = true;
+            renderPracticeMode();
+        }
+
+        // --- API CALL (POLLINATIONS) ---
+        async function callAIAnalysis(targetText, spokenText) {
+            const url = "https://text.pollinations.ai/openai?token=25eMuLLjvFlPA9iw";
+            const systemPrompt = `
+                Actúa como un profesor de teatro experto y amable.
+                Estás evaluando a un alumno (Ariel) que ensaya una obra.
+                Quiero que tengas en cuenta que este texto que ha dicho el usuario contiene
+                faltas de ortografia porque esta narrado con voz a texto del navagador malo.
+                Por ejemplo, Artix es normal que salga como Arctics o Artist.
+                
+                Guion Original: "${targetText}"
+                Transcripción Alumno: "${spokenText}"
+                
+                Tarea:
+                1. Score (0-100).
+                2. Missing Topics (array) (solo concepto).
+                3. Feedback (String en Español).
+                
+                Output JSON ONLY format:
+                {
+                "score": 0,
+                "feedback": "...",
+                "missingWords": ["..."]
+                }
+            `;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [
+                            { role: "system", content: "You are a helpful drama teacher. Output JSON only." },
+                            { role: "user", content: systemPrompt }
+                        ],
+                        model: "gemini"
+                    })
+                });
+
+                if (!response.ok) throw new Error('Error API');
+                
+                const data = await response.json();
+                let content = data.choices?.[0]?.message?.content || data.content || "";
+                
+                // Limpieza JSON
+                content = content.replace(/```json/g, '').replace(/```/g, '').trim();
+                return JSON.parse(content);
+            } catch (error) {
+                console.error("AI Error:", error);
+                return {
+                    score: 0,
+                    feedback: "Error de conexión con la IA. Intenta de nuevo.",
+                    missingWords: []
+                };
+            }
+        }
+
+    </script>
+</body>
+</html>

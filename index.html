@@ -327,9 +327,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
                 descEl.innerText = "Dale al play, habla todo lo que quieras y dale a STOP para que la IA te puntúe.";
                 langToggle.classList.remove('hidden');
                 
-                // IMPORTANTE: Reseteamos currentStep solo al entrar en modo practice por primera vez o reiniciar
-                // No llamamos a resetPracticeState aquí para no pisar si ya venía con estado, 
-                // pero si cambiamos de modo generalmente se empieza de cero.
                 currentStep = 0;
                 resetPracticeState();
                 renderPracticeMode();
@@ -369,7 +366,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
             scriptData.forEach(line => {
                 const isMe = line.speaker === myCharacter;
                 if (isMe) {
-                    // Interactive blurred card
                     html += `
                         <div class="p-4 rounded-lg border-l-4 bg-purple-50 border-purple-400 transition-all">
                             <span class="font-bold text-xs uppercase tracking-wide block mb-2 text-purple-700">${line.speaker}</span>
@@ -399,7 +395,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
             lucide.createIcons();
         }
 
-        // Helper para memorizar
         window.toggleBlur = function(element) {
             const p = element.querySelector('p');
             const overlay = element.querySelector('.overlay');
@@ -418,8 +413,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
         // --- LÓGICA DE PRÁCTICA (IA) ---
 
         function resetPracticeState() {
-            // CORREGIDO: Ya no reinicia currentStep = 0 aquí. 
-            // Esto solo limpia el estado de la INTERVENCIÓN actual.
             spokenText = '';
             aiResult = null;
             isListening = false;
@@ -443,7 +436,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
 
             const step = practiceSteps[currentStep];
             
-            // Construcción del HTML
             let html = `
                 <div class="max-w-xl mx-auto fade-in">
                     <!-- Nav pequeña -->
@@ -481,7 +473,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
                                 </div>
                             ` : ''}
                             
-                            <!-- Barra de progreso auto-avance -->
                             ${autoAdvanceTimer ? `
                                 <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-200 z-20">
                                     <div class="h-full bg-green-500 animate-shrink w-full origin-left" style="animation-duration: 15000ms"></div>
@@ -492,7 +483,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
                         <!-- CONTROLES -->
                         <div class="mb-4 w-full flex flex-col items-center">
                             
-                            <!-- Estado Inicial -->
                             ${!isListening && !isAnalyzing && !aiResult ? `
                                 <div class="text-center fade-in">
                                     <p class="text-slate-500 mb-4 text-lg font-medium">Pulsa, habla todo lo que necesites y luego para.</p>
@@ -502,7 +492,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
                                 </div>
                             ` : ''}
 
-                            <!-- Escuchando -->
                             ${isListening ? `
                                 <div class="text-center">
                                     <button onclick="stopAndAnalyze()" class="bg-red-500 hover:bg-red-600 text-white w-20 h-20 rounded-full flex items-center justify-center shadow-lg animate-pulse transition-all transform hover:scale-105">
@@ -512,7 +501,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
                                 </div>
                             ` : ''}
 
-                            <!-- Analizando -->
                             ${isAnalyzing ? `
                                 <div class="text-center py-4 flex flex-col items-center fade-in">
                                     <i data-lucide="loader-2" class="w-10 h-10 animate-spin text-purple-600 mb-2"></i>
@@ -521,17 +509,14 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
                             ` : ''}
                         </div>
 
-                        <!-- RESULTADOS IA -->
                         ${aiResult ? renderAIResult(aiResult) : ''}
 
-                        <!-- Botón "Me rindo" -->
                         ${!isListening && !isAnalyzing && !aiResult && !revealedPracticeLine ? `
                             <button onclick="revealLine()" class="mt-4 text-slate-400 hover:text-purple-600 text-xs flex items-center gap-1 transition-colors">
                                 <i data-lucide="eye" class="w-3 h-3"></i> Me rindo, mostrar frase
                             </button>
                         ` : ''}
 
-                        <!-- Texto Revelado -->
                         ${revealedPracticeLine && !aiResult ? `
                             <div class="mt-6 w-full text-left fade-in">
                                 <p class="text-lg font-medium text-slate-800 border-t pt-4">${step.response.text}</p>
@@ -555,10 +540,8 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
             container.innerHTML = html;
             lucide.createIcons();
             
-            // Si estamos escuchando, nos aseguramos de que el visualizador esté conectado
             if(isListening) {
-                 // initAudioVisualizer intentará reusar el stream global
-                 initAudioVisualizer(); 
+                initAudioVisualizer(); 
             }
         }
 
@@ -622,7 +605,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
             const label = document.getElementById('lang-label');
             label.innerText = voiceLang === 'en-US' ? 'Idioma: Inglés' : 'Idioma: Español';
             
-            // Si estaba escuchando, reinicia
             if(isListening) {
                 stopLogicOnly();
                 startListening();
@@ -642,10 +624,9 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
             clearAutoAdvance();
             renderPracticeMode();
 
-            // Speech Recognition
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
-            recognition.continuous = true; // IMPORTANTE: No parar en silencio
+            recognition.continuous = true;
             recognition.interimResults = true;
             recognition.lang = voiceLang;
 
@@ -666,12 +647,12 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
             
             try {
                 recognition.start();
-                initAudioVisualizer(); // Reusa el stream global si existe
+                initAudioVisualizer();
             } catch(e) { console.error(e); }
         }
 
         function stopAndAnalyze() {
-            stopLogicOnly(); // Paramos solo la lógica (reconocimiento), no el visualizador/stream
+            stopLogicOnly();
             
             if (!spokenText.trim()) {
                 isListening = false;
@@ -682,13 +663,11 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
             isAnalyzing = true;
             renderPracticeMode();
 
-            // Llamada a la IA
             const target = practiceSteps[currentStep].response.text;
             callAIAnalysis(target, spokenText).then(result => {
                 aiResult = result;
                 isAnalyzing = false;
                 
-                // Auto avance si score alto
                 if (result.score >= 80 && currentStep < practiceSteps.length - 1) {
                     autoAdvanceTimer = setTimeout(() => {
                         nextStep();
@@ -699,7 +678,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
             });
         }
 
-        // Detiene solo el reconocimiento de texto y animación, pero mantiene el stream de audio
         function stopLogicOnly() {
             if (recognition) {
                 try { recognition.stop(); } catch(e){}
@@ -709,7 +687,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
             if (animationFrame) cancelAnimationFrame(animationFrame);
         }
 
-        // Detiene TODO, incluyendo el stream (para salir del modo)
         function stopMediaTracks() {
             stopLogicOnly();
             if (globalStream) {
@@ -723,14 +700,12 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
         }
 
         function stopEverything() {
-            // Alias legacy, ahora decide qué parar según el modo
             stopLogicOnly();
         }
 
         // --- AUDIO VISUALIZER (Canvas) ---
         async function initAudioVisualizer() {
             try {
-                // Reusar stream si existe
                 if (!globalStream || !globalStream.active) {
                     globalStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 }
@@ -739,7 +714,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
                 if (!audioContext) audioContext = new AudioContext();
                 if (audioContext.state === 'suspended') await audioContext.resume();
 
-                // Si ya existe una fuente conectada, desconectarla para evitar errores
                 if (source) source.disconnect();
 
                 analyser = audioContext.createAnalyser();
@@ -771,7 +745,6 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
 
                 for (let i = 0; i < bufferLength; i++) {
                     const barHeight = (dataArray[i] / 255) * canvas.height;
-                    // Gradiente morado
                     const r = 147 + (barHeight/2);
                     const g = 51 + (barHeight/4);
                     const b = 234;
@@ -793,7 +766,7 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
         function nextStep() {
             if (currentStep < practiceSteps.length - 1) {
                 currentStep++;
-                resetPracticeState(); // limpia texto, score, etc
+                resetPracticeState();
                 renderPracticeMode();
             }
         }
@@ -807,7 +780,7 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
         }
 
         function fullResetPractice() {
-            currentStep = 0; // Reinicia el contador de pasos explícitamente
+            currentStep = 0;
             resetPracticeState();
             renderPracticeMode();
         }
@@ -817,60 +790,97 @@ Ariel: Well, pollution has been a problem since the industrial revolution.`;
             renderPracticeMode();
         }
 
-        // --- API CALL (POLLINATIONS) ---
+        // --- API CALL (MISTRAL) ---
+        const MISTRAL_API_KEY = "evxly62Xv91b752fbnHA2I3HD988C5RT";
+        const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
+        const MISTRAL_MODEL = "mistral-large-latest";
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY_MS = 1500;
+
+        async function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
         async function callAIAnalysis(targetText, spokenText) {
-            const url = "https://text.pollinations.ai/openai?token=25eMuLLjvFlPA9iw";
-            const systemPrompt = `
-                Actúa como un profesor de teatro experto y amable.
-                Estás evaluando a un alumno que ensaya una obra.
-                Quiero que tengas en cuenta que este texto que ha dicho el usuario contiene
-                faltas de ortografia porque esta narrado con voz a texto del navagador malo.
-                Por ejemplo, Artix es normal que salga como Arctics o Artist.
-                
-                Guion Original: "${targetText}"
-                Transcripción Alumno: "${spokenText}"
-                
-                Tarea:
-                1. Score (0-100).
-                2. Missing Topics (array) (solo concepto).
-                3. Feedback (String en Español).
-                
-                Output JSON ONLY format:
-                {
-                "score": 0,
-                "feedback": "...",
-                "missingWords": ["..."]
+            const userPrompt = `
+Actúa como un profesor de teatro experto y amable.
+Estás evaluando a un alumno que ensaya una obra.
+Quiero que tengas en cuenta que este texto que ha dicho el usuario contiene
+faltas de ortografia porque esta narrado con voz a texto del navagador malo.
+Por ejemplo, Artix es normal que salga como Arctics o Artist.
+
+Guion Original: "${targetText}"
+Transcripción Alumno: "${spokenText}"
+
+Tarea:
+1. Score (0-100).
+2. Missing Topics (array) (solo concepto).
+3. Feedback (String en Español).
+
+Output JSON ONLY format, sin markdown ni backticks:
+{
+  "score": 0,
+  "feedback": "...",
+  "missingWords": ["..."]
+}
+            `.trim();
+
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                    const response = await fetch(MISTRAL_API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${MISTRAL_API_KEY}`
+                        },
+                        body: JSON.stringify({
+                            model: MISTRAL_MODEL,
+                            max_tokens: 512,
+                            messages: [
+                                {
+                                    role: "system",
+                                    content: "You are a helpful drama teacher. Output ONLY valid JSON, no markdown, no backticks, no explanations."
+                                },
+                                {
+                                    role: "user",
+                                    content: userPrompt
+                                }
+                            ]
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errBody = await response.text();
+                        console.warn(`[Mistral] Intento ${attempt}/${MAX_RETRIES} fallido — HTTP ${response.status}: ${errBody}`);
+                        if (attempt < MAX_RETRIES) {
+                            await sleep(RETRY_DELAY_MS * attempt); // backoff progresivo
+                            continue;
+                        }
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    let content = data.choices?.[0]?.message?.content || "";
+
+                    // Limpieza defensiva por si el modelo pone backticks igualmente
+                    content = content.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+                    const parsed = JSON.parse(content);
+                    return parsed;
+
+                } catch (error) {
+                    console.warn(`[Mistral] Intento ${attempt}/${MAX_RETRIES} — Error:`, error);
+                    if (attempt < MAX_RETRIES) {
+                        await sleep(RETRY_DELAY_MS * attempt);
+                    } else {
+                        console.error("[Mistral] Todos los reintentos agotados.");
+                        return {
+                            score: 0,
+                            feedback: "Error de conexión con la IA tras varios intentos. Comprueba tu conexión y vuelve a intentarlo.",
+                            missingWords: []
+                        };
+                    }
                 }
-            `;
-
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        messages: [
-                            { role: "system", content: "You are a helpful drama teacher. Output JSON only." },
-                            { role: "user", content: systemPrompt }
-                        ],
-                        model: "gemini"
-                    })
-                });
-
-                if (!response.ok) throw new Error('Error API');
-                
-                const data = await response.json();
-                let content = data.choices?.[0]?.message?.content || data.content || "";
-                
-                // Limpieza JSON
-                content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-                return JSON.parse(content);
-            } catch (error) {
-                console.error("AI Error:", error);
-                return {
-                    score: 0,
-                    feedback: "Error de conexión con la IA. Intenta de nuevo.",
-                    missingWords: []
-                };
             }
         }
 
